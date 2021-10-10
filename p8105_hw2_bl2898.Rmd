@@ -1,0 +1,116 @@
+---
+title: "p8105_hw2_bl2898"
+author: "Boqian Li"
+date: "10/7/2021"
+output: html_document
+---
+### Problem 1 
+```{r}
+library(tidyverse)
+library(readxl)
+#Read the data without columns containing notes
+data_trash <- read_excel("Trash-Wheel-Collection-Totals-8-6-19.xlsx", sheet = "Mr. Trash Wheel", range = cell_cols(1:14), na = " ")
+#Change variable names to reasonable format
+colnames(data_trash) <- c("Dumpster", "Month", "Year","Date", "Weight", "Volume", "Plastic_Bottles", "Polystyrene", "Cigarette_Butts", "Glass_Bottles", "Grocery_Bags", "Chip_Bags", "Sports_Balls", "Homes_Powered")
+#Omit missing rows
+data_trash_clean <- na.omit(data_trash)
+#Round sports balls to nearest integers
+data_trash_clean$Sports_Balls <- round(data_trash_clean$Sports_Balls, digits = 0)
+```
+```{r}
+#Read 2018 and 2019 data
+Precipitation_2018 <- read_excel("Trash-Wheel-Collection-Totals-8-6-19.xlsx", sheet = "2018 Precipitation", range = cell_rows(2:14), na = " ")
+Precipitation_2019 <- read_excel("Trash-Wheel-Collection-Totals-8-6-19.xlsx", sheet = "2019 Precipitation", range = cell_rows(2:14), na = " ")
+#Add year variable
+Precipitation_2018$year <- 2018
+Precipitation_2019$year <- 2019
+#Omit rows without precipitation data
+Precipitation_2018 <- na.omit(Precipitation_2018)
+Precipitation_2019 <- na.omit(Precipitation_2019)
+#Combine both data sheets by column
+#Method 1: Only month 1 to 6 are combined because we omitted missing rows in 2019
+Precipitation_combined_1 <- merge(Precipitation_2018, Precipitation_2019, by = "Month")
+#Method 2: Repeated rows of 1 to 6 months for 2019 because 7 to 12 were omitted
+Precipitation_combined_2 <- cbind(Precipitation_2018, Precipitation_2019)
+#Method 3: Combine data by row (I guess this one is what the question asked for)
+Precipitation_combined_3 <- rbind(Precipitation_2018, Precipitation_2019)
+#Convert month to character name
+Precipitation_combined_3$Month <- c(month.name,month.name[1:6])
+```
+
+
+### Problem 2
+```{r}
+library(readr)
+pols_month <- read_csv("fivethirtyeight_datasets/pols-month.csv")
+unemployment <- read_csv("fivethirtyeight_datasets/unemployment.csv")
+snp <- read_csv("fivethirtyeight_datasets/snp.csv")
+```
+```{r}
+#pols_month
+pols_month <- separate(pols_month, col = "mon", into = c("year", "month", "day"), sep = "-")
+pols_month$month <- c(rep(month.name,times = 822/12), month.name[1:6])
+pols_month$president <- pols_month$prez_dem + pols_month$prez_gop
+pols_month <- pols_month[,-c(3,4,8)]
+```
+```{r}
+#snp
+snp <- separate(snp, col = "date", into = c("month", "day", "year"), sep = "/")
+snp$month <- c(rep(month.name, times = 787/12), month.name[1:7])
+snp <- snp[,c(3,1,4)]
+snp$year <- ifelse(snp$year < 50, as.numeric(snp$year)+2000, as.numeric(snp$year)+1900)
+```
+```{r}
+unempolyment_long <- reshape(unemployment, 
+  varying = c("Jan",  "Feb",  "Mar",  "Apr",  "May",  "Jun",  "Jul",  "Aug",  "Sep",  "Oct",  "Nov",  "Dec"), 
+  v.names = "unemployment",
+  timevar = "Month", 
+  times = c("Jan",  "Feb",  "Mar",  "Apr",  "May",  "Jun",  "Jul",  "Aug",  "Sep",  "Oct",  "Nov",  "Dec"), 
+  direction = "long")
+```
+```{r}
+#Sort snp
+snp <- snp[order(snp$year, snp$month), ]
+#Merge snp and pol
+snp_pol <- merge(pols_month, snp, by = c("year", "month"))
+#Merge uneployment into above data
+snp_pol_une <- merge(snp_pol, unempolyment_long, by = c("year", "month"))
+```
+
+
+### Problem 3
+```{r}
+Popular_Baby_Names <- read_csv("Popular_Baby_Names.csv")
+#Remove duplicated data
+PBN <- unique(Popular_Baby_Names)
+#Change variable name
+colnames(PBN) <- c("Year_of_Birth", "Gender", "Ethnicity", "Child_First_Name","Count", "Rank")
+```
+```{r}
+#User friendly table of Olivia over time
+PBN_Olivia <- subset(PBN, Child_First_Name=="Olivia", select = c("Year_of_Birth","Ethnicity", "Rank"))
+PBN_Olivia
+```
+```{r}
+#Similar table showing the most popular name among male children over time
+PBN_Ethan <- subset(PBN, Child_First_Name=="Ethan", select = c("Year_of_Birth","Ethnicity", "Rank"))
+PBN_Ethan
+```
+```{r}
+#for male, white non-hispanic children born in 2016, produce a scatter plot showing the number of children with a name (y axis) against the rank in popularity of that name (x axis).
+library(ggplot2)
+PBN_mw2016 <- subset(PBN, Gender == "MALE" & Ethnicity == "WHITE NON HISPANIC" & Year_of_Birth == 2016)
+
+ggplot(PBN_mw2016, aes(Rank, Child_First_Name)) + 
+  geom_point() + 
+  theme_bw() +
+  xlab("Rank") +
+  ylab("Name")
+```
+
+
+
+
+
+
+
